@@ -23,7 +23,7 @@ module.exports = {
   ],
   deploy: {
     production: {
-      user: "root",
+      user: "deploy",
       host: ["192.168.1.101"],
       ref: "origin/main",
       repo: "git@github.com:tuan243/my-colyseus-server.git",
