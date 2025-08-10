@@ -27,7 +27,7 @@ module.exports = {
       host: ["192.168.1.101"],
       ref: "origin/main",
       repo: "git@github.com:tuan243/my-colyseus-server.git",
-      path: "/home/deploy",
+      path: "/home/deploy/my-colyseus-server",
       "post-deploy":
         "npm install && npm run build && npm run colyseus-post-deploy",
     },
