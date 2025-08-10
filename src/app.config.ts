@@ -1,13 +1,20 @@
-import config from "@colyseus/tools";
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
+import config from "@colyseus/tools";
 
 /**
  * Import your Room files
  */
+import { RedisDriver, RedisPresence } from "colyseus";
 import { MyRoom } from "./rooms/MyRoom";
 
 export default config({
+    options: {
+        driver: new RedisDriver(),
+        presence: new RedisPresence(),
+
+        publicAddress: `nginx.tuan-server-01.name.vn/${(Number(process.env.PORT) + Number(process.env.NODE_APP_INSTANCE))}`
+    },
 
     initializeGameServer: (gameServer) => {
         /**
