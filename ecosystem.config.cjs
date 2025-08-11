@@ -16,13 +16,14 @@ module.exports = {
       instances: os.cpus().length,
       exec_mode: "fork",
       wait_ready: true,
-      env_production: {
+      kill_timeout: 30 * 60 * 1000,
+      env_development: {
         NODE_ENV: "development",
       },
     },
   ],
   deploy: {
-    production: {
+    development: {
       user: "deploy",
       host: ["192.168.1.101"],
       ref: "origin/main",
