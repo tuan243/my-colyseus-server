@@ -17,7 +17,7 @@ module.exports = {
       exec_mode: "fork",
       wait_ready: true,
       kill_timeout: 30 * 60 * 1000,
-      env_development: {
+      env: {
         NODE_ENV: "development",
         PORT: 2567
       },
