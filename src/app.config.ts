@@ -20,6 +20,7 @@ export default config({
         /**
          * Define your room handlers:
          */
+        console.log('port', process.env.PORT, process.env.NODE_APP_INSTANCE);
         gameServer.define('my_room', MyRoom);
 
     },
