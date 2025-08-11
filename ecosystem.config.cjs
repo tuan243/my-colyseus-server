@@ -11,7 +11,6 @@ module.exports = {
     {
       name: "colyseus-app",
       script: "build/index.js",
-      port: 2567,
       time: true,
       watch: false,
       instances: os.cpus().length,
@@ -20,6 +19,7 @@ module.exports = {
       kill_timeout: 30 * 60 * 1000,
       env_development: {
         NODE_ENV: "development",
+        PORT: 2567
       },
     },
   ],
