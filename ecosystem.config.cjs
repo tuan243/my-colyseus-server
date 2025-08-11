@@ -11,6 +11,7 @@ module.exports = {
     {
       name: "colyseus-app",
       script: "build/index.js",
+      port: 2567,
       time: true,
       watch: false,
       instances: os.cpus().length,
