@@ -31,7 +31,7 @@ module.exports = {
       repo: "git@github.com:tuan243/my-colyseus-server.git",
       path: "/home/deploy/my-colyseus-server",
       "post-deploy":
-        "npm install && npm run build && npm run colyseus-post-deploy",
+        "npm install && npm run build && node ./pm2-agent/pm2/post-deploy-agent.js",
     },
   },
 };
