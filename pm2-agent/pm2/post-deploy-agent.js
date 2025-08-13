@@ -11,7 +11,7 @@ const pm2 = require("pm2");
 const fs = require("fs");
 const cst = require("pm2/constants");
 // const io = require('@pm2/io');
-// const path = require('path');
+const path = require('path');
 const shared = require("./shared");
 
 const opts = { env: process.env.NODE_ENV || "production" };
