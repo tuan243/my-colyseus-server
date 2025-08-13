@@ -15,7 +15,7 @@ const path = require("path");
 const shared = require("./shared");
 
 const opts = { env: process.env.NODE_ENV || "production" };
-console.log("opts", opts);
+console.log("opts env", opts);
 let config = undefined;
 
 // io.initModule({
@@ -102,7 +102,7 @@ pm2.connect(async function (err) {
       process.exit(1);
     } else {
       console.log("Post-deploy success.");
-      process.exit();
+      // process.exit();
     }
     // reply.apply(null, arguments);
   };
@@ -190,13 +190,14 @@ function postDeploy(cwd, reply) {
        * release post-deploy action while proceeding with graceful restart of other processes
        */
       reply({ success: !err, message: err?.message });
+      console.log('on first app start', { success: !err, message: err?.message });
 
       if (err) {
         return console.error(err);
       }
 
       let numActiveApps = initialApps.length + restartingAppIds.size;
-
+      console.log('num active apps', numActiveApps);
       /**
        * - Write NGINX config to expose only the new active process
        * - The old ones processes will go down asynchronously (or will be restarted)
