@@ -27,6 +27,20 @@ let config = undefined;
 //   }
 // });
 
+const CONFIG_FILE = [
+  'ecosystem.config.cjs',
+  'ecosystem.config.js',
+  'pm2.config.cjs',
+  'pm2.config.js',
+].find((filename) => fs.existsSync(path.resolve(pm2.cwd, filename)));
+
+if (!CONFIG_FILE) {
+  throw new Error('missing ecosystem config file. make sure to provide one with a valid "script" entrypoint file path.');
+}
+
+const CONFIG_FILE_PATH = `${pm2.cwd}/${CONFIG_FILE}`;
+const arg = `${pm2.cwd}:${CONFIG_FILE_PATH}`
+
 pm2.connect(async function (err) {
   if (err) {
     console.error(err.stack || err);
@@ -62,7 +76,7 @@ pm2.connect(async function (err) {
   //   }
   // });
 
-  const [cwd, ecosystemFilePath] = arg0.split(":");
+  const [cwd, ecosystemFilePath] = arg.split(":");
   console.log("Received 'post-deploy' action!", {
     cwd,
     config: ecosystemFilePath,
