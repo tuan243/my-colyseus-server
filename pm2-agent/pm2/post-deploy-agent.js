@@ -11,11 +11,11 @@ const pm2 = require("pm2");
 const fs = require("fs");
 const cst = require("pm2/constants");
 // const io = require('@pm2/io');
-const path = require('path');
+const path = require("path");
 const shared = require("./shared");
 
 const opts = { env: process.env.NODE_ENV || "production" };
-console.log('opts', opts);
+console.log("opts", opts);
 let config = undefined;
 
 // io.initModule({
@@ -28,18 +28,20 @@ let config = undefined;
 // });
 
 const CONFIG_FILE = [
-  'ecosystem.config.cjs',
-  'ecosystem.config.js',
-  'pm2.config.cjs',
-  'pm2.config.js',
+  "ecosystem.config.cjs",
+  "ecosystem.config.js",
+  "pm2.config.cjs",
+  "pm2.config.js",
 ].find((filename) => fs.existsSync(path.resolve(pm2.cwd, filename)));
 
 if (!CONFIG_FILE) {
-  throw new Error('missing ecosystem config file. make sure to provide one with a valid "script" entrypoint file path.');
+  throw new Error(
+    'missing ecosystem config file. make sure to provide one with a valid "script" entrypoint file path.'
+  );
 }
 
 const CONFIG_FILE_PATH = `${pm2.cwd}/${CONFIG_FILE}`;
-const arg = `${pm2.cwd}:${CONFIG_FILE_PATH}`
+const arg = `${pm2.cwd}:${CONFIG_FILE_PATH}`;
 
 pm2.connect(async function (err) {
   if (err) {
@@ -374,6 +376,8 @@ function writeNginxConfig(app_envs) {
       `127.0.0.1:${port + app_env.NODE_APP_INSTANCE}`
     );
   });
+
+  console.log("address", addresses);
 
   // write NGINX config
   fs.writeFileSync(
