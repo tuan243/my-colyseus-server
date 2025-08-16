@@ -1,88 +1,46 @@
 #!/usr/bin/env node
-const pm2 = require("pm2");
-const fs = require("fs");
-const path = require("path");
-const shared = require("./pm2/shared");
+const pm2 = require('pm2');
+const fs = require('fs');
+const path = require('path');
+const shared = require('./pm2/shared');
 
-const opts = { env: process.env.NODE_ENV || "production" };
+const opts = { env: process.env.NODE_ENV || "production", };
 
 const CONFIG_FILE = [
-  "ecosystem.config.cjs",
-  "ecosystem.config.js",
-  "pm2.config.cjs",
-  "pm2.config.js",
+  'ecosystem.config.cjs',
+  'ecosystem.config.js',
+  'pm2.config.cjs',
+  'pm2.config.js',
 ].find((filename) => fs.existsSync(path.resolve(pm2.cwd, filename)));
 
 /**
  * TODO: if not provided, auto-detect entry-point & dynamically generate ecosystem config
  */
 if (!CONFIG_FILE) {
-  throw new Error(
-    'missing ecosystem config file. make sure to provide one with a valid "script" entrypoint file path.'
-  );
+  throw new Error('missing ecosystem config file. make sure to provide one with a valid "script" entrypoint file path.');
 }
 
 const CONFIG_FILE_PATH = `${pm2.cwd}/${CONFIG_FILE}`;
-
-const agentPath = path.resolve(__dirname, "pm2/post-deploy-agent.js");
-const args = [`${pm2.cwd}:${CONFIG_FILE_PATH}`];
-
-console.log("Starting post-deploy agent...");
-
-const agent = spawn("node", [agentPath, ...args], {
-  detached: true,
-  stdio: ["pipe", "pipe", "pipe"],
-  env: { ...process.env, NODE_ENV: opts.env }, // pass env vars
-});
-
-// Listen for first success/fail message
-let exited = false;
-agent.stdout.on("data", (data) => {
-  const msg = data.toString().trim();
-  process.stdout.write(data); // keep normal logs
-
-  if (!exited) {
-    if (/Post-deploy success/i.test(msg)) {
-      exited = true;
-      process.exit(0);
-    } else if (/Post-deploy failed/i.test(msg)) {
-      exited = true;
-      process.exit(1);
-    }
-  }
-});
-
-agent.stderr.on("data", (data) => {
-  process.stderr.write(data);
-});
-
-agent.on("error", (err) => {
-  console.error("Failed to start post-deploy agent:", err);
-  process.exit(1);
-});
-
-// Let the agent keep running after we exit
-agent.unref();
 
 /**
  * Try to handle post-deploy via PM2 module first (pm2 install @colyseus/tools)
  * If not available, fallback to legacy post-deploy script.
  */
-// pm2.trigger('@colyseus/tools', 'post-deploy', `${pm2.cwd}:${CONFIG_FILE_PATH}`, async function (err, result) {
-//   if (err) {
-//     console.log("Proceeding with legacy post-deploy script...");
-//     postDeploy();
+pm2.trigger('@colyseus/tools', 'post-deploy', `${pm2.cwd}:${CONFIG_FILE_PATH}`, async function (err, result) {
+  if (err) {
+    console.log("Proceeding with legacy post-deploy script...");
+    postDeploy();
 
-//   } else {
-//     if (result[0].data?.return?.success === false) {
-//       console.error(result[0].data?.return?.message || "Post-deploy failed. Check application logs for more details.");
-//       process.exit(1);
-//     } else {
-//       console.log("Post-deploy success.");
-//       process.exit();
-//     }
-//   }
-// });
+  } else {
+    if (result[0].data?.return?.success === false) {
+      console.error(result[0].data?.return?.message || "Post-deploy failed. Check application logs for more details.");
+      process.exit(1);
+    } else {
+      console.log("Post-deploy success.");
+      process.exit();
+    }
+  }
+});
 
 async function postDeploy() {
   shared.listApps(function (err, apps) {
@@ -93,7 +51,9 @@ async function postDeploy() {
       // first deploy
       //
       pm2.start(CONFIG_FILE_PATH, { ...opts }, () => onAppRunning());
+
     } else {
+
       //
       // detect if cwd has changed, and restart PM2 if it has
       //
@@ -102,6 +62,7 @@ async function postDeploy() {
         // remove all and start again with new cwd
         //
         restartAll();
+
       } else {
         //
         // reload existing apps
@@ -120,8 +81,8 @@ function onAppRunning(reloadedAppIds) {
   updateAndReloadNginx();
 }
 
-function restartAll() {
-  pm2.delete("all", function (err) {
+function restartAll () {
+  pm2.delete('all', function (err) {
     // kill & start again
     pm2.kill(function () {
       pm2.start(CONFIG_FILE_PATH, { ...opts }, () => onAppRunning());
@@ -135,9 +96,10 @@ function reloadAll(retry = 0) {
       //
       // Retry in case of "Reload in progress" error.
       //
-      if (err.message === "Reload in progress" && retry < 5) {
+      if (err.message === 'Reload in progress' && retry < 5) {
         console.warn(err.message, ", retrying...");
         setTimeout(() => reloadAll(retry + 1), 1000);
+
       } else {
         bailOnErr(err);
       }
@@ -146,20 +108,19 @@ function reloadAll(retry = 0) {
     }
 
     const name = apps[0].name;
-    const reloadedAppIds = apps.map((app) => app.pm_id);
+    const reloadedAppIds = apps.map(app => app.pm_id);
 
     // scale app to use all CPUs available
     if (apps.length !== shared.MAX_ACTIVE_PROCESSES) {
-      pm2.scale(name, shared.MAX_ACTIVE_PROCESSES, () =>
-        onAppRunning(reloadedAppIds)
-      );
+      pm2.scale(name, shared.MAX_ACTIVE_PROCESSES, () => onAppRunning(reloadedAppIds));
+
     } else {
       onAppRunning(reloadedAppIds);
     }
   });
 }
 
-function resetAppStats(reloadedAppIds) {
+function resetAppStats (reloadedAppIds) {
   reloadedAppIds.forEach((pm_id) => {
     pm2.reset(pm_id, (err, _) => {
       if (err) {
@@ -169,7 +130,7 @@ function resetAppStats(reloadedAppIds) {
       }
     });
   });
-}
+};
 
 function updateAndReloadNginx() {
   //
@@ -184,7 +145,7 @@ function updateAndReloadNginx() {
   //     service nginx reload
   // done
 
-  shared.listApps(function (err, apps) {
+  shared.listApps(function(err, apps) {
     if (apps.length === 0) {
       err = "no apps running.";
     }
@@ -193,20 +154,12 @@ function updateAndReloadNginx() {
     const port = 2567;
     const addresses = [];
 
-    apps.forEach(function (app) {
-      addresses.push(
-        `unix:${shared.PROCESS_UNIX_SOCK_PATH}${
-          port + app.pm2_env.NODE_APP_INSTANCE
-        }.sock`
-      );
+    apps.forEach(function(app) {
+      addresses.push(`unix:${shared.PROCESS_UNIX_SOCK_PATH}${port + app.pm2_env.NODE_APP_INSTANCE}.sock`);
     });
 
     // write NGINX config
-    fs.writeFileSync(
-      shared.NGINX_SERVERS_CONFIG_FILE,
-      addresses.map((address) => `server ${address};`).join("\n"),
-      bailOnErr
-    );
+    fs.writeFileSync(shared.NGINX_SERVERS_CONFIG_FILE, addresses.map(address => `server ${address};`).join("\n"), bailOnErr);
 
     // "pm2 save"
     pm2.dump(function (err, ret) {
@@ -215,6 +168,7 @@ function updateAndReloadNginx() {
       // exit with success!
       process.exit();
     });
+
   });
 }
 

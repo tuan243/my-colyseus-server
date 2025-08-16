@@ -14,18 +14,19 @@ const cst = require("pm2/constants");
 const path = require("path");
 const shared = require("./shared");
 
-const opts = { env: process.env.NODE_ENV || "production" };
-console.log("opts env", opts);
-let config = undefined;
+// --------- CLI args ----------
+if (!process.argv[2] || !process.argv[2].includes(":")) {
+  console.error(
+    "Usage: post-deploy-agent.js <cwd>:<ecosystemFilePath>\n" +
+      "Example: post-deploy-agent.js /var/www/app:/var/www/app/ecosystem.config.js"
+  );
+  process.exit(1);
+}
+const [cwd, ecosystemFilePath] = process.argv[2].split(":");
 
-// io.initModule({
-//   pid: path.resolve('/var/run/colyseus-agent.pid'),
-//   widget: {
-//     type: 'generic',
-//     logo: 'https://colyseus.io/images/logos/logo-dark-color.png',
-//     theme : ['#9F1414', '#591313', 'white', 'white'],
-//   }
-// });
+// --------- Options / state ----------
+const opts = { env: process.env.NODE_ENV || "production" };
+let config = undefined;
 
 const CONFIG_FILE = [
   "ecosystem.config.cjs",
@@ -46,66 +47,9 @@ const arg = `${pm2.cwd}:${CONFIG_FILE_PATH}`;
 pm2.connect(async function (err) {
   if (err) {
     console.error(err.stack || err);
+    console.log("Post-deploy failed");
     process.exit();
   }
-  console.log("PM2 post-deploy agent is up and running...");
-
-  /**
-   * Remote actions
-   */
-  // io.action('post-deploy', async function (arg0, reply) {
-  //   const [cwd, ecosystemFilePath] = arg0.split(':');
-  //   console.log("Received 'post-deploy' action!", { cwd, config: ecosystemFilePath });
-
-  //   let replied = false;
-
-  //   //
-  //   // Override 'reply' to decrement amount of concurrent deployments
-  //   //
-  //   const onReply = function() {
-  //     if (replied) { return; }
-  //     replied = true;
-  //     reply.apply(null, arguments);
-  //   }
-
-  //   try {
-  //     config = await shared.getAppConfig(ecosystemFilePath);
-  //     opts.cwd = cwd;
-  //     postDeploy(cwd, onReply);
-
-  //   } catch (err) {
-  //     onReply({ success: false, message: err?.message });
-  //   }
-  // });
-
-  const [cwd, ecosystemFilePath] = arg.split(":");
-  console.log("Received 'post-deploy' action!", {
-    cwd,
-    config: ecosystemFilePath,
-  });
-
-  let replied = false;
-
-  //
-  // Override 'reply' to decrement amount of concurrent deployments
-  //
-  const onReply = function (data) {
-    if (replied) {
-      return;
-    }
-    replied = true;
-    if (data.success === false) {
-      console.error(
-        data.message ||
-          "Post-deploy failed. Check application logs for more details."
-      );
-      process.exit(1);
-    } else {
-      console.log("Post-deploy success.");
-      // process.exit();
-    }
-    // reply.apply(null, arguments);
-  };
 
   try {
     config = await shared.getAppConfig(ecosystemFilePath);
@@ -115,6 +59,26 @@ pm2.connect(async function (err) {
     onReply({ success: false, message: err?.message });
   }
 });
+
+// --------- "reply" equivalent for our standalone agent ----------
+let replied = false;
+function onReply(data) {
+  if (replied) return;
+  replied = true;
+
+  if (data?.success === false) {
+    console.error(
+      data?.message ||
+        "Post-deploy failed. Check application logs for more details."
+    );
+    console.log("Post-deploy failed");
+    // IMPORTANT: do NOT exit here; allow logs/cleanup to continue if any.
+    return;
+  }
+
+  console.log("Post-deploy success"); // <-- caller (post-deploy.js) listens for this and exits
+  // Agent continues running to finish the rolling restart and NGINX updates.
+}
 
 const restartingAppIds = new Set();
 
@@ -190,14 +154,12 @@ function postDeploy(cwd, reply) {
        * release post-deploy action while proceeding with graceful restart of other processes
        */
       reply({ success: !err, message: err?.message });
-      console.log('on first app start', { success: !err, message: err?.message });
 
       if (err) {
         return console.error(err);
       }
 
       let numActiveApps = initialApps.length + restartingAppIds.size;
-      console.log('num active apps', numActiveApps);
       /**
        * - Write NGINX config to expose only the new active process
        * - The old ones processes will go down asynchronously (or will be restarted)
@@ -234,12 +196,6 @@ function postDeploy(cwd, reply) {
 
       if (numActiveApps < shared.MAX_ACTIVE_PROCESSES) {
         const missingOnlineApps = shared.MAX_ACTIVE_PROCESSES - numActiveApps;
-
-        // console.log("Active apps is lower than MAX_ACTIVE_PROCESSES, will SCALE again =>", {
-        //   missingOnlineApps,
-        //   numActiveApps,
-        //   newNumTotalApps: numTotalApps + missingOnlineApps
-        // });
 
         pm2.scale(
           apps[0].name,
@@ -318,11 +274,6 @@ function updateAndSaveIfAllRunning(err) {
   }
 
   updateAndReloadNginx((app_envs) => {
-    // console.log("updateAndExitIfAllRunning, app_ids (", app_envs.map(app_env => app_env.NODE_APP_INSTANCE) ,") => ", app_envs.length, "/", shared.MAX_ACTIVE_PROCESSES);
-
-    //
-    // TODO: add timeout to exit here, in case some processes are not starting
-    //
     if (app_envs.length === shared.MAX_ACTIVE_PROCESSES) {
       complete();
     }
@@ -370,15 +321,8 @@ function writeNginxConfig(app_envs) {
   const addresses = [];
 
   app_envs.forEach(function (app_env) {
-    addresses.push(
-      // `unix:${shared.PROCESS_UNIX_SOCK_PATH}${
-      //   port + app_env.NODE_APP_INSTANCE
-      // }.sock`
-      `127.0.0.1:${port + app_env.NODE_APP_INSTANCE}`
-    );
+    addresses.push(`127.0.0.1:${port + app_env.NODE_APP_INSTANCE}`);
   });
-
-  console.log("address", addresses);
 
   // write NGINX config
   fs.writeFileSync(
@@ -389,8 +333,12 @@ function writeNginxConfig(app_envs) {
 }
 
 function complete() {
-  // "pm2 save"
-  pm2.dump(logIfError);
+  // "pm2 save" then exit cleanly
+  pm2.dump((err) => {
+    logIfError(err);
+    try { pm2.disconnect(); } catch (_) {}
+    process.exit(0);
+  });
 }
 
 function logIfError(err) {
