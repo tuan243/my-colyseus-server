@@ -188,6 +188,8 @@ function postDeploy(cwd, reply) {
 
             // reset counter stats (restart_time=0)
             pm2.reset(app_env.pm_id, logIfError);
+
+            updateAndReloadNginx();
           });
         } else {
           pm2.stop(app_env.pm_id, logIfError);
