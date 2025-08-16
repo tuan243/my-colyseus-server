@@ -5,8 +5,26 @@ import config from "@colyseus/tools";
 /**
  * Import your Room files
  */
-import { RedisDriver, RedisPresence } from "colyseus";
+import { RedisDriver, RedisPresence, matchMaker } from "colyseus";
 import { MyRoom } from "./rooms/MyRoom";
+
+import("@pm2/io")
+  .then((io) => {
+    io.default.metric({
+      id: "app/stats/ccu",
+      name: "CCU",
+      value: () => matchMaker.stats.local.ccu
+    });
+
+    io.default.metric({
+      id: "app/stats/roomcount",
+      name: "Room Count",
+      value: () => matchMaker.stats.local.roomCount
+    });
+  })
+  .catch(() => {
+    console.log('no pm2 io');
+  });
 
 export default config({
     options: {
